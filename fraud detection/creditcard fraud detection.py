@@ -1,31 +1,58 @@
+import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
-import lightgbm as lgb
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
 
-# Step 1: Load and Explore the Data
-data = pd.read_csv('creditcard.csv')
+# Load the credit card dataset
+credit_card_data = pd.read_csv('creditcard.csv')
 
-# Step 2: Data Preprocessing
-data.fillna(0, inplace=True)
-X = data.drop('Class', axis=1)
-y = data['Class']
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-scaler = StandardScaler()
-X_train = scaler.fit_transform(X_train)
-X_test = scaler.transform(X_test)
+# Display basic information about the dataset
+print(credit_card_data.info())
 
-# Step 3: Model Selection and Training (Using LightGBM)
-model = lgb.LGBMClassifier(random_state=42, n_jobs=-1)
-model.fit(X_train, y_train)
-y_pred = model.predict(X_test)
+# Explore data statistics and missing values
+print(credit_card_data.describe())
+print(credit_card_data.isnull().sum())
 
-# Step 4: Model Evaluation
-accuracy = accuracy_score(y_test, y_pred)
-print(f'Accuracy: {accuracy:.2f}')
-print(f'Confusion Matrix:\n{confusion_matrix(y_test, y_pred)}')
-print(f'Classification Report:\n{classification_report(y_test, y_pred)}')
+# Explore data grouped by 'Class' column
+print(credit_card_data.groupby('Class').mean())
 
-# Step 5: Model Deployment (Optional)
-# Deploy the chosen model to make real-time predictions on new credit card transactions.
+# Separate legitimate and fraudulent transactions
+legit = credit_card_data[credit_card_data.Class == 0]
+fraud = credit_card_data[credit_card_data.Class == 1]
+
+# Display shapes of legitimate and fraudulent data
+print(legit.shape)
+print(fraud.shape)
+
+# Describe 'Amount' column for both classes
+print(legit.Amount.describe())
+print(fraud.Amount.describe())
+
+# Sample legitimate transactions to balance the dataset
+legit_sample = legit.sample(n=492)
+new_dataset = pd.concat([legit_sample, fraud], axis=0)
+
+# Display class distribution in the new dataset
+print(new_dataset['Class'].value_counts())
+
+# Separate features (X) and target (Y)
+X = new_dataset.drop(columns='Class', axis=1)
+Y = new_dataset['Class']
+
+# Split data into train and test sets
+X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, stratify=Y, random_state=2)
+
+# Initialize and train a Logistic Regression model
+model = LogisticRegression()
+model.fit(X_train, Y_train)
+
+# Make predictions on training data
+X_train_prediction = model.predict(X_train)
+training_data_accuracy = accuracy_score(X_train_prediction, Y_train)
+print('Accuracy on Training data : ', training_data_accuracy)
+
+# Make predictions on test data
+X_test_prediction = model.predict(X_test)
+test_data_accuracy = accuracy_score(X_test_prediction, Y_test)
+print('Accuracy score on Test Data : ', test_data_accuracy)
